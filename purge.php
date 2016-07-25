@@ -39,8 +39,7 @@ require_capability('enrol/attributes:config', $context);
 
 if (enrol_attributes_plugin::purge_instance($instanceid, $context)) {
     print_string('ajax-okpurged', 'enrol_attributes');
-}
-else {
+} else {
     print_string('ajax-error', 'enrol_attributes');
 }
 

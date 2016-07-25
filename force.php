@@ -48,8 +48,7 @@ ob_end_clean();
 
 if ($nbenrolled !== false) {
     print_string('ajax-okforced', 'enrol_attributes', $nbenrolled);
-}
-else {
+} else {
     print_string('ajax-error', 'enrol_attributes');
 }
 

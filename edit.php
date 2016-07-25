@@ -33,10 +33,7 @@ $context = context_course::instance($course->id);
 require_login($course);
 require_capability('enrol/attributes:config', $context);
 
-$PAGE->set_url('/enrol/attributes/edit.php', array(
-        'courseid' => $course->id,
-        'id'       => $instanceid
-));
+$PAGE->set_url('/enrol/attributes/edit.php', array('courseid' => $course->id, 'id' => $instanceid));
 $PAGE->set_pagelayout('admin');
 
 $return = new moodle_url('/enrol/instances.php', array('id' => $course->id));
@@ -47,13 +44,8 @@ if (!enrol_is_enabled('attributes')) {
 $plugin = enrol_get_plugin('attributes');
 
 if ($instanceid) {
-    $instance = $DB->get_record('enrol', array(
-            'courseid' => $course->id,
-            'enrol'    => 'attributes',
-            'id'       => $instanceid
-    ), '*', MUST_EXIST);
-}
-else {
+    $instance = $DB->get_record('enrol', array('courseid' => $course->id, 'enrol' => 'attributes', 'id' => $instanceid), '*', MUST_EXIST);
+} else {
     require_capability('moodle/course:enrolconfig', $context);
     // no instance yet, we have to add new instance
     navigation_node::override_active_url(new moodle_url('/enrol/instances.php', array('id' => $course->id)));
@@ -62,16 +54,11 @@ else {
     $instance->courseid = $course->id;
 }
 
-$mform = new enrol_attributes_edit_form(null, array(
-        $instance,
-        $plugin,
-        $context
-));
+$mform = new enrol_attributes_edit_form(null, array($instance, $plugin, $context));
 
 if ($mform->is_cancelled()) {
     redirect($return);
-}
-else if ($data = $mform->get_data()) {
+} else if ($data = $mform->get_data()) {
 
     if ($instance->id) {
         $instance->name = $data->name;
@@ -79,14 +66,8 @@ else if ($data = $mform->get_data()) {
         $instance->customint1 = isset($data->customint1) ? ($data->customint1) : 0;
         $instance->customtext1 = $data->customtext1;
         $DB->update_record('enrol', $instance);
-    }
-    else {
-        $fields = array(
-                'name'        => $data->name,
-                'roleid'      => $data->roleid,
-                'customint1'  => isset($data->customint1),
-                'customtext1' => $data->customtext1
-        );
+    } else {
+        $fields = array('name' => $data->name, 'roleid' => $data->roleid, 'customint1' => isset($data->customint1), 'customtext1' => $data->customtext1);
         $plugin->add_instance($course, $fields);
     }
 

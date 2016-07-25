@@ -51,13 +51,11 @@ class enrol_attributes_plugin extends enrol_plugin {
     public function get_newinstance_link($courseid) {
         $context = context_course::instance($courseid);
 
-        if (!has_capability('moodle/course:enrolconfig', $context) or !has_capability('enrol/attributes:config',
-                        $context)
-        ) {
+        if (!has_capability('moodle/course:enrolconfig', $context) or !has_capability('enrol/attributes:config', $context)) {
             return null;
         }
-        $configured_profilefields = explode(',', get_config('enrol_attributes', 'profilefields'));
-        if (!strlen(array_shift($configured_profilefields))) {
+        $configuredprofilefields = explode(',', get_config('enrol_attributes', 'profilefields'));
+        if (!strlen(array_shift($configuredprofilefields))) {
             // no profile fields are configured for this plugin
             return null;
         }
@@ -110,12 +108,8 @@ class enrol_attributes_plugin extends enrol_plugin {
         $icons = array();
 
         if (has_capability('enrol/attributes:config', $context)) {
-            $editlink = new moodle_url("/enrol/attributes/edit.php", array(
-                    'courseid' => $instance->courseid,
-                    'id'       => $instance->id
-            ));
-            $icons[] = $OUTPUT->action_icon($editlink,
-                    new pix_icon('i/edit', get_string('edit'), 'core', array('class' => 'icon')));
+            $editlink = new moodle_url("/enrol/attributes/edit.php", array('courseid' => $instance->courseid, 'id' => $instance->id));
+            $icons[] = $OUTPUT->action_icon($editlink, new pix_icon('i/edit', get_string('edit'), 'core', array('class' => 'icon')));
         }
 
         return $icons;
@@ -124,8 +118,8 @@ class enrol_attributes_plugin extends enrol_plugin {
     public static function attrsyntax_toarray($attrsyntax) { // TODO : protected
         global $DB;
 
-        $attrsyntax_object = json_decode($attrsyntax);
-        $rules = $attrsyntax_object->rules;
+        $attrsyntaxobject = json_decode($attrsyntax);
+        $rules = $attrsyntaxobject->rules;
 
         $customuserfields = array();
         foreach ($DB->get_records('user_info_field') as $customfieldrecord) {
@@ -141,8 +135,8 @@ class enrol_attributes_plugin extends enrol_plugin {
     public static function arraysyntax_tosql($arraysyntax) { // TODO : protected
         global $CFG;
         $select = '';
-        $where = '1=1';
-        static $join_id = 0;
+        $where = 'true';
+        static $joinid = 0;
         $params = array();
         $customuserfields = $arraysyntax['customuserfields'];
 
@@ -159,33 +153,30 @@ class enrol_attributes_plugin extends enrol_plugin {
 
         foreach ($arraysyntax['rules'] as $rule) {
             if (isset($rule->cond_op)) {
-                $where .= ' ' . strtoupper($rule->cond_op) . ' ';
-            }
-            else {
+                $where .= ' '.strtoupper($rule->cond_op).' ';
+            } else {
                 $where .= ' AND ';
             }
             if (isset($rule->rules)) {
-                $sub_arraysyntax = array(
-                        'customuserfields' => $customuserfields,
-                        'rules'            => $rule->rules
+                $subarraysyntax = array(
+                    'customuserfields'  => $customuserfields,
+                    'rules'             => $rule->rules
                 );
-                $sub_sql = self::arraysyntax_tosql($sub_arraysyntax);
-                $select .= ' ' . $sub_sql['select'] . ' ';
-                $where .= ' ( ' . $sub_sql['where'] . ' ) ';
-                $params = array_merge($params, $sub_sql['params']);
-            }
-            else {
+                $subsql = self::arraysyntax_tosql($subarraysyntax);
+                $select .= ' '.$subsql['select'].' ';
+                $where .= ' ( '.$subsql['where'].' ) ';
+            } else {
                 if ($customkey = array_search($rule->param, $customuserfields, true)) {
                     // custom user field actually exists
-                    $join_id++;
-                    global $DB;
-                    $data = 'd' . $join_id . '.data';
-                    $select .= ' RIGHT JOIN {user_info_data} d' . $join_id . ' ON d' . $join_id . '.userid = u.id';
-                    $where .= ' (d' . $join_id . '.fieldid = ? AND (' . $DB->sql_compare_text($data) . ' = ' . $DB->sql_compare_text('?') . ' OR ' . $DB->sql_like($DB->sql_compare_text($data),
-                                    '?') . ' OR ' . $DB->sql_like($DB->sql_compare_text($data),
-                                    '?') . ' OR ' . $DB->sql_like($DB->sql_compare_text($data), '?') . '))';
-                    array_push($params, $customkey, $rule->value, '%;' . $rule->value, $rule->value . ';%',
-                            '%;' . $rule->value . ';%');
+                    $joinid++;
+                    $select .= ' RIGHT JOIN '.$CFG->prefix.'user_info_data d'.$joinid.' ON d'.$joinid.'.userid = u.id';
+                    $where .= ' (d'.$joinid.'.fieldid = '.$customkey.'
+                                 AND ( d'.$joinid.'.data = \''.$rule->value.'\'
+                                      OR d'.$joinid.'.data LIKE \'%;'.$rule->value.'\'
+                                      OR d'.$joinid.'.data LIKE \''.$rule->value.';%\'
+                                      OR d'.$joinid.'.data LIKE \'%;'.$rule->value.';%\'
+                                     )
+                                )';
                 }
             }
         }
@@ -223,11 +214,9 @@ class enrol_attributes_plugin extends enrol_plugin {
                 $customfields[] = $customfieldrecord->shortname;
             }
             $mapping = array();
-            $mappings_str = explode("\n", str_replace("\r", '', get_config('enrol_attributes', 'mappings')));
-            foreach ($mappings_str as $mapping_str) {
-                if (preg_match('/^\s*([^: ]+)\s*:\s*([^: ]+)\s*$/', $mapping_str, $matches) && in_array($matches[2],
-                                $customfields) && array_key_exists($matches[1], $_SERVER)
-                ) {
+            $mappingsstr = explode("\n", str_replace("\r", '', get_config('enrol_attributes', 'mappings')));
+            foreach ($mappingsstr as $mappingstr) {
+                if (preg_match('/^\s*([^: ]+)\s*:\s*([^: ]+)\s*$/', $mappingstr, $matches) && in_array($matches[2], $customfields) && array_key_exists($matches[1], $_SERVER)) {
                     $mapping[$matches[1]] = $matches[2];
                 }
             }
@@ -251,95 +240,81 @@ class enrol_attributes_plugin extends enrol_plugin {
     public static function process_enrolments($event = null, $instanceid = null) {
         global $DB;
         $nbenrolled = 0;
-        $possible_unenrolments = array();
+        $possibleunenrolments = array();
 
         if ($instanceid) {
             // We're processing one particular instance, making sure it's active
-            $enrol_attributes_records = $DB->get_records('enrol', array(
-                    'enrol'  => 'attributes',
-                    'status' => 0,
-                    'id'     => $instanceid
-            ));
-        }
-        else {
+            $enrolattributesrecords = $DB->get_records('enrol', array('enrol' => 'attributes', 'status' => 0, 'id' => $instanceid));
+        } else {
             // We're processing all active instances,
             // because a user just logged in
             // OR we're running the cron
-            $enrol_attributes_records = $DB->get_records('enrol', array(
-                    'enrol'  => 'attributes',
-                    'status' => 0
-            ));
+            $enrolattributesrecords = $DB->get_records('enrol', array('enrol' => 'attributes', 'status' => 0));
             if (!is_null($event)) {
                 // Let's check if there are any potential unenroling instances
                 $userid = (int)$event->userid;
-                $possible_unenrolments =
-                        $DB->get_records_sql("SELECT id, enrolid FROM {user_enrolments} WHERE userid = ? AND status = 0 AND enrolid IN ( SELECT id FROM {enrol} WHERE enrol = 'attributes' AND customint1 = 1 ) ",
-                                array($userid));
+                $possibleunenrolments = $DB->get_records_sql(
+                    "SELECT id, enrolid FROM {user_enrolments}
+                      WHERE userid = ?
+                        AND status = 0
+                        AND enrolid IN ( SELECT id FROM {enrol} WHERE enrol = 'attributes' AND customint1 = 1 )",
+                            array($userid));
             }
         }
 
         // are we to unenrol from anywhere?
-        foreach ($possible_unenrolments as $id => $user_enrolment) {
-
-            $unenrol_attributes_record = $DB->get_record('enrol', array(
-                    'enrol'      => 'attributes',
-                    'status'     => 0,
-                    'customint1' => 1,
-                    'id'         => $user_enrolment->enrolid
-            ));
-            if (!$unenrol_attributes_record) {
+        foreach ($possibleunenrolments as $id => $userenrolment) {
+            $unenrolattributesrecord = $DB->get_record('enrol', array('enrol' => 'attributes', 'status' => 0, 'customint1' => 1, 'id' => $userenrolment->enrolid));
+            if (!$unenrolattributesrecord) {
                 continue;
             }
 
             $select = 'SELECT DISTINCT u.id FROM {user} u';
-            $where = ' WHERE u.id=' . $userid . ' AND u.deleted=0 AND ';
-            $arraysyntax = self::attrsyntax_toarray($unenrol_attributes_record->customtext1);
-            $arraysql = self::arraysyntax_tosql($arraysyntax);
-            $users = $DB->get_records_sql($select . $arraysql['select'] . $where . $arraysql['where'],
-                    $arraysql['params']);
+            $where = ' WHERE u.id='.$userid.' AND u.deleted=0 AND ';
+            $arraysyntax = self::attrsyntax_toarray($unenrolattributesrecord->customtext1);
+            $arraysql    = self::arraysyntax_tosql($arraysyntax);
+            $users = $DB->get_records_sql($select . $arraysql['select'] . $where . $arraysql['where']);
 
             if (!array_key_exists($userid, $users)) {
-                $enrol_attributes_instance = new enrol_attributes_plugin();
-                $enrol_attributes_instance->unenrol_user($unenrol_attributes_record, (int)$userid);
+                $enrolattributesinstance = new enrol_attributes_plugin();
+                $enrolattributesinstance->unenrol_user($unenrolattributesrecord, (int)$userid);
             }
         }
 
         // are we to enrol anywhere?
-        foreach ($enrol_attributes_records as $enrol_attributes_record) {
+        foreach ($enrolattributesrecords as $enrolattributesrecord) {
 
-            $rules = json_decode($enrol_attributes_record->customtext1)->rules;
-            $configured_profilefields = explode(',', get_config('enrol_attributes', 'profilefields'));
+            $rules = json_decode($enrolattributesrecord->customtext1)->rules;
+            $configuredprofilefields = explode(',', get_config('enrol_attributes', 'profilefields'));
             foreach ($rules as $rule) {
                 if (!isset($rule->param)) {
                     break;
                 }
-                if (!in_array($rule->param, $configured_profilefields)) {
+                if (!in_array($rule->param, $configuredprofilefields)) {
                     break 2;
                 }
             }
-            $enrol_attributes_instance = new enrol_attributes_plugin();
-            $enrol_attributes_instance->name = $enrol_attributes_record->name;
+            $enrolattributesinstance = new enrol_attributes_plugin();
+            $enrolattributesinstance->name = $enrolattributesrecord->name;
 
             $select = 'SELECT DISTINCT u.id FROM {user} u';
             if ($event) { // called by an event, i.e. user login
                 $userid = (int)$event->userid;
-                $where = ' WHERE u.id=' . $userid;
-            }
-            else { // called by cron or by construct
-                $where = ' WHERE 1=1';
+                $where = ' WHERE u.id='.$userid;
+            } else { // called by cron or by construct
+                $where = ' WHERE true';
             }
             $where .= ' AND u.deleted=0 AND ';
-            $arraysyntax = self::attrsyntax_toarray($enrol_attributes_record->customtext1);
-            $arraysql = self::arraysyntax_tosql($arraysyntax);
+            $arraysyntax = self::attrsyntax_toarray($enrolattributesrecord->customtext1);
+            $arraysql    = self::arraysyntax_tosql($arraysyntax);
 
             $users = $DB->get_records_sql($select . $arraysql['select'] . $where . $arraysql['where'],
                     $arraysql['params']);
             foreach ($users as $user) {
-                if (is_enrolled(context_course::instance($enrol_attributes_record->courseid), $user)) {
+                if (is_enrolled(context_course::instance($enrolattributesrecord->courseid), $user)) {
                     continue;
                 }
-                $enrol_attributes_instance->enrol_user($enrol_attributes_record, $user->id,
-                        $enrol_attributes_record->roleid);
+                $enrolattributesinstance->enrol_user($enrolattributesrecord, $user->id, $enrolattributesrecord->roleid);
                 $nbenrolled++;
             }
         }
